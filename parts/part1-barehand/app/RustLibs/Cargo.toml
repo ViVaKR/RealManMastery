@@ -1,0 +1,3 @@
+[workspace]
+members = ["rust_core", "rust_macro", "rust_test_runner"]
+resolver = "2"

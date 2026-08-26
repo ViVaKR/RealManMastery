@@ -1,0 +1,10 @@
+[package]
+name = "rust_core"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"] # FFI용 dylib 및 internal 연동용 rlib 동시 지원
+
+[dependencies]
+rust_macro = { path = "../rust_macro" }
