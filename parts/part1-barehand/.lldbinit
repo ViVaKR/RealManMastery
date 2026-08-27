@@ -1,0 +1,6 @@
+settings set target.load-cwd-lldbinit true
+command script import scripts/vdump.py
+command alias regs register read
+command alias wregs register read w0 w1 w2 w3 w4 w5 w6 w7 w8 w9
+
+script print("==> RealManMastery lldb 환경 로드 완료 (vdump, vdumpall, regs, wregs 사용 가능)")

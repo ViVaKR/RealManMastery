@@ -108,7 +108,6 @@ public static class CalculateLib
   public static void ConsoleWriteLineF64(double a, double b, double sum)
       => WriteLineInternal(a, b, sum);
 
-
   [UnmanagedCallersOnly(EntryPoint = "console_print_string")]
   public static unsafe void ConsolePrintString(byte* utf8String)
   {
@@ -116,10 +115,4 @@ public static class CalculateLib
     string? str = Marshal.PtrToStringUTF8((nint)utf8String);
     Console.WriteLine(str);
   }
-  // [UnmanagedCallersOnly(EntryPoint = "console_writeline")]
-  // public static void ConsoleWriteLine(long a, long b, long sum)
-  // {
-  //   Console.WriteLine("===> Hello, World <==");
-  //   Console.WriteLine($"{a} + {b} = {sum}");
-  // }
 }

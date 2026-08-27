@@ -23,11 +23,17 @@ pub fn build(b: *std.Build) void {
     const clean_dotnet = b.addSystemCommand(&.{ "rm", "-rf", "obj", "bin", "out" });
     clean_dotnet.setCwd(b.path("app/DotnetLibs"));
 
-    const publish_dotnet = b.addSystemCommand(&.{ dotnet_exe, "publish" });
-    publish_dotnet.step.dependOn(&clean_dotnet.step); // 항상 clean 먼저 실행
+    const restore_dotnet = b.addSystemCommand(&.{ dotnet_exe, "restore" });
+    restore_dotnet.step.dependOn(&clean_dotnet.step);
+    restore_dotnet.addFileArg(b.path("app/DotnetLibs/DotnetLibs.csproj"));
 
+    restore_dotnet.addArgs(&.{ "-r", dotnet_rid });
+
+    // restore_dotnet 스텝 자체를 없애고, publish에서 --no-restore 제거
+    const publish_dotnet = b.addSystemCommand(&.{ dotnet_exe, "publish" });
+    publish_dotnet.step.dependOn(&clean_dotnet.step); // restore 대신 clean에 바로 의존
     publish_dotnet.addFileArg(b.path("app/DotnetLibs/DotnetLibs.csproj"));
-    publish_dotnet.addArgs(&.{ "-c", config, "-r", dotnet_rid, "-o", "out" });
+    publish_dotnet.addArgs(&.{ "-c", config, "-r", dotnet_rid, "-o", "out" }); // --no-restore 삭제
     publish_dotnet.setCwd(b.path("app/DotnetLibs"));
 
     const dotnet_lib_name = b.fmt("DotnetLibs.{s}", .{dylib_ext});
