@@ -64,6 +64,13 @@ pub fn build(b: *std.Build) void {
             .link_libc = true,
         }),
     });
+    // ⭐️ [추가] 디버그 기호 보존을 위해 무조건 스트립(Strip)을 끕니다.
+    exe.root_module.strip = false;
+
+    // ⭐️ [추가] macOS 전용 디버그 심볼 생성을 강제합니다.
+    if (os_tag == .macos) {
+        exe.bundle_compiler_rt = true; // 런타임 심볼 보장
+    }
 
     // Include Search Path 설정
     exe.root_module.addIncludePath(b.path("src"));

@@ -14,29 +14,15 @@ BIN_DIR="zig-out/bin"
 EXE_PATH="${BIN_DIR}/RealManApp"
 DYLIB_PATH="${BIN_DIR}/DotnetLibs.dylib"
 
-# 1. 빌드는 터미널에서 'zig build'로 수동 수행하는 것으로 분리.
-# (필요시 아래 주석을 해제하면 자동 빌드 재개)
-# echo "==> zig build install"
-# zig build install
+# 1. 빌드 오케스트레이션 수행
+echo "==> zig build"
+zig build -Doptimize=Debug
 
 # 2. macOS LLDB가 C# AOT 동적 라이브러리의 소스 라인/심볼을 제대로 파악하도록 dSYM 생성
-# DSYM_PATH="${DYLIB_PATH}.dSYM"
-# if [[ -f "$DYLIB_PATH" ]] && command -v dsymutil >/dev/null 2>&1; then
-#     if [[ ! -d "$DSYM_PATH" ]] || [[ "$DYLIB_PATH" -nt "$DSYM_PATH" ]]; then
-#         echo "==> dsymutil ${DYLIB_PATH} (dSYM 갱신 필요)"
-#         dsymutil "$DYLIB_PATH"
-#     else
-#         echo "==> dSYM 최신 상태, 재생성 생략"
-#     fi
-# fi
 if [[ -f "$DYLIB_PATH" ]] && command -v dsymutil >/dev/null 2>&1; then
     echo "==> dsymutil ${DYLIB_PATH}"
     dsymutil "$DYLIB_PATH"
 fi
-# if [[ -f "$DYLIB_PATH" ]] && command -v dsymutil >/dev/null 2>&1; then
-#     echo "==> dsymutil ${DYLIB_PATH}"
-#     dsymutil "$DYLIB_PATH"
-# fi
 
 # 3. lldb 실행 (-o "b ..." 를 사용하여 심볼과 파일:라인 방식을 모두 지원)
 echo "==> lldb ${EXE_PATH} (break at ${BREAK_LOCATION})"
