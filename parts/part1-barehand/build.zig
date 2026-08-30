@@ -14,8 +14,13 @@ pub fn build(b: *std.Build) void {
     const rpath_token: []const u8 = if (os_tag == .macos) "@executable_path" else "$ORIGIN";
     const config: []const u8 = if (optimize == .Debug) "Debug" else "Release";
 
+    // 1. dotnet 컴파일러 탐색
     const dotnet_exe = b.findProgram(&.{"dotnet"}, &.{}) catch
         @panic("dotnet 을 PATH 에서 못 찾았네");
+
+    // 2. Go 컴파일러 탐색 (이제 정상 작동!)
+    const go_exe = b.findProgram(&.{"go"}, &.{}) catch
+        @panic("go(고랭)를 PATH 에서 못 찾았네");
 
     // ==========================================
     // 1. app/DotnetLibs (.NET Native AOT) 스텝
@@ -40,7 +45,35 @@ pub fn build(b: *std.Build) void {
     const dotnet_lib_path = b.path(b.fmt("app/DotnetLibs/out/{s}", .{dotnet_lib_name}));
 
     // ==========================================
-    // 2. app/RustLibs (Rust rust_core) 스텝
+    // 2-1.app/GoLibs
+    // ==========================================
+    const go_lib_name = b.fmt("libgo_core.{s}", .{dylib_ext});
+    const go_lib_output_dir = "app/GoLibs/out";
+
+    // 이전 빌드 파일 청소
+    const clean_go = b.addSystemCommand(&.{ "rm", "-rf", go_lib_output_dir });
+    const go_build = b.addSystemCommand(&.{ go_exe, "build", "-buildmode=c-shared", "-o", b.fmt("out/{s}", .{go_lib_name}), "main.go" });
+
+    go_build.setEnvironmentVariable("CGO_ENABLED", "1");
+    go_build.step.dependOn(&clean_go.step);
+    go_build.setCwd(b.path("app/GoLibs"));
+    // macOS: Go가 만든 dylib의 install name(LC_ID_DYLIB)은 기본적으로
+    // "@rpath/" 없이 파일명만 박혀있어서, 실행 시 dyld가 @rpath 검색을 안 하네.
+    // Rust/.NET dylib과 동일하게 @rpath 기준으로 찾도록 강제 수정.
+    const go_fix_install_name = if (os_tag == .macos) blk: {
+        const step = b.addSystemCommand(&.{
+            "install_name_tool",              "-id", b.fmt("@rpath/{s}", .{go_lib_name}),
+            b.fmt("out/{s}", .{go_lib_name}),
+        });
+        step.setCwd(b.path("app/GoLibs"));
+        step.step.dependOn(&go_build.step);
+        break :blk step;
+    } else null;
+
+    const go_lib_path = b.path(b.fmt("app/GoLibs/out/{s}", .{go_lib_name}));
+
+    // ==========================================
+    // 2-2. app/RustLibs (Rust rust_core) 스텝
     // ==========================================
     const rust_profile = if (optimize == .Debug) "debug" else "release";
 
@@ -84,10 +117,13 @@ pub fn build(b: *std.Build) void {
     // .NET AOT 및 Rust 빌드가 완료되어야 실행파일 링킹 진행
     exe.step.dependOn(&publish_dotnet.step);
     exe.step.dependOn(&cargo_build.step);
+    exe.step.dependOn(&go_build.step);
 
     // .NET 및 Rust 동적 라이브러리 연결
     exe.root_module.addObjectFile(dotnet_lib_path);
     exe.root_module.addObjectFile(rust_lib_path);
+    exe.root_module.addObjectFile(go_lib_path);
+
     exe.root_module.addRPathSpecial(rpath_token);
 
     if (os_tag == .macos) {
@@ -100,15 +136,27 @@ pub fn build(b: *std.Build) void {
     // ==========================================
     b.installArtifact(exe);
 
-    // .NET dylib 복사 설치 (publish 완료 후 진행)
+    // ⭐️ dotnet dylib 복사 설치 (publish 완료 후 진행)
     const install_dotnet_lib = b.addInstallFileWithDir(dotnet_lib_path, .bin, dotnet_lib_name);
     install_dotnet_lib.step.dependOn(&publish_dotnet.step);
     b.getInstallStep().dependOn(&install_dotnet_lib.step);
 
-    // Rust dylib 복사 설치 (cargo build 완료 후 진행)
+    // ⭐️ Rust dylib 복사 설치 (cargo build 완료 후 진행)
     const install_rust_lib = b.addInstallFileWithDir(rust_lib_path, .bin, rust_lib_name);
     install_rust_lib.step.dependOn(&cargo_build.step);
     b.getInstallStep().dependOn(&install_rust_lib.step);
+
+    // ⭐️ Go dylib 복사 설치 (go build 완료 후 진행)
+    const install_go_lib = b.addInstallFileWithDir(go_lib_path, .bin, go_lib_name);
+    if (go_fix_install_name) |step| {
+        install_go_lib.step.dependOn(&step.step);
+    } else {
+        install_go_lib.step.dependOn(&go_build.step);
+    }
+    b.getInstallStep().dependOn(&install_go_lib.step);
+    // const install_go_lib = b.addInstallFileWithDir(go_lib_path, .bin, go_lib_name);
+    // install_go_lib.step.dependOn(&go_build.step);
+    // b.getInstallStep().dependOn(&install_go_lib.step);
 
     // ==========================================
     // 5. 실행 (run) 스텝
