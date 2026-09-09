@@ -1,5 +1,19 @@
 # Debug Part 1
 
+## zig build 
+
+```bash
+# 1. 기본 디버그 실행 (기본 지정된 Main.S:5에서 멈춤)
+zig build run -Ddebug=true
+
+# 2. 원하는 라인 지정 실행 (예: Main.S:7)
+zig build run -Ddebug=true -Dbreak="Main.S:7"
+
+# 3. 함수 심볼 이름 지정 실행 (예: _main 또는 C# 엔트리포인트 csharp_entry)
+zig build run -Ddebug=true -Dbreak="_main"
+```
+
+### disassemble
 
 ```c
 (lldb) f 1
@@ -16,8 +30,6 @@ dyld`start:
 // --> si (step instruction) 를 한 번 치면 화살표가 한 줄 아래로 내려 가면서
 //                           방금 그 줄이 실행 완료된 상태로 바뀜
 
-
-// [ 정리 ] 
 // "_main 실행 끝났네"
 // "자 아까 나온 리턴값(x0) 을 x19에 잘 챙겨 두고"
 // "OS 정리 작업 함수에 넘겨줄 구조체 주소 계산해서 디버거/OS 후속 처리하려 가자!"
@@ -41,19 +53,17 @@ dyld`start:
 // --> 다음에 이어질 dyld 내부 청소/종료 함수에 넘겨줄 데이터 구조체의 오프셋 주소를 준비하는 과정
 ```
 
-## disassemble
+## 명령어 분해
 
 ```c
     0x1000006c4 <+4>:  mov    x29, sp
     0x1000006c8 <+8>:  stp    x19, x20, [sp, #0x10]
-    0x1000006cc <+12>: mov    x19, #0x25 ; =37 
-->  0x1000006d0 <+16>: mov    x20, #0x43 ; =67 
+    0x1000006cc <+12>: mov    x19, #0x25
+->  0x1000006d0 <+16>: mov    x20, #0x43
     0x1000006d4 <+20>: add    x0, x19, x20
-    
-(lldb) memory read 0x1000006cc
-0x1000006cc: b3 04 80 d2 74 08 80 d2 60 02 14 8b 30 00 00 94
-0x1000006dc: 0e 00 00 94 e0 03 13 aa e1 03 14 aa 26 00 00 94
 
+// 32 바이트 명령어 : `mov x19, #0x25`
+0x1000006cc: b3 04 80 d2
 
 // 바이트 배열을 4바이트 씩 끊어서 리틀 엔디안으로 해석
 // ARM64는 모든 명령어가 4바이트 고정길이 이고, 메모리에는 리틀 엔디안으로 저장됨 

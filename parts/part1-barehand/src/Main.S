@@ -1,3 +1,10 @@
+.section __DATA, __data
+
+.section _TEXT, __cstring, cstring_literals
+.align 3
+_demo:         .asciz "안녕하세요 반갑습니다.\n"
+_test_message: .asciz "감사합니다.\n"
+
 .section __TEXT, __text, regular, pure_instructions
 
 .global _main
@@ -9,14 +16,16 @@ _main:
 	mov x29, sp
   
 	// x19 부터 x28 까지 16바이트 간격으로 풀 백업
-	stp x19, x20, [sp, #16]  // Offset
+	stp x19, x20, [sp, #16]
 	stp x21, x22, [sp, #32]
 	stp x23, x24, [sp, #48]
 	stp x25, x26, [sp, #64]
 	stp x27, x28, [sp, #80]
 	
 	// ====================== //
-	bl _for_loop
+	adrp x0, _test_message@PAGE
+	add  x0, x0, _test_message@PAGEOFF
+	bl   _printf
 	
 	// ===================== // 
 
