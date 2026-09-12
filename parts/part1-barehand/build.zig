@@ -27,18 +27,14 @@ pub fn build(b: *std.Build) void {
     // ==========================================
     const clean_dotnet = b.addSystemCommand(&.{ "rm", "-rf", "obj", "bin", "out" });
     clean_dotnet.setCwd(b.path("app/DotnetLibs"));
-
     const restore_dotnet = b.addSystemCommand(&.{ dotnet_exe, "restore" });
     restore_dotnet.step.dependOn(&clean_dotnet.step);
     restore_dotnet.addFileArg(b.path("app/DotnetLibs/DotnetLibs.csproj"));
-
     restore_dotnet.addArgs(&.{ "-r", dotnet_rid });
-
-    // restore_dotnet 스텝 자체를 없애고, publish에서 --no-restore 제거
     const publish_dotnet = b.addSystemCommand(&.{ dotnet_exe, "publish" });
-    publish_dotnet.step.dependOn(&clean_dotnet.step); // restore 대신 clean에 바로 의존
+    publish_dotnet.step.dependOn(&clean_dotnet.step);
     publish_dotnet.addFileArg(b.path("app/DotnetLibs/DotnetLibs.csproj"));
-    publish_dotnet.addArgs(&.{ "-c", config, "-r", dotnet_rid, "-o", "out" }); // --no-restore 삭제
+    publish_dotnet.addArgs(&.{ "-c", config, "-r", dotnet_rid, "-o", "out" });
     publish_dotnet.setCwd(b.path("app/DotnetLibs"));
 
     const dotnet_lib_name = b.fmt("DotnetLibs.{s}", .{dylib_ext});
@@ -97,6 +93,7 @@ pub fn build(b: *std.Build) void {
             .link_libc = true,
         }),
     });
+
     // ⭐️ [추가] 디버그 기호 보존을 위해 무조건 스트립(Strip)을 끕니다.
     exe.root_module.strip = false;
 
@@ -154,9 +151,6 @@ pub fn build(b: *std.Build) void {
         install_go_lib.step.dependOn(&go_build.step);
     }
     b.getInstallStep().dependOn(&install_go_lib.step);
-    // const install_go_lib = b.addInstallFileWithDir(go_lib_path, .bin, go_lib_name);
-    // install_go_lib.step.dependOn(&go_build.step);
-    // b.getInstallStep().dependOn(&install_go_lib.step);
 
     // ==========================================
     // 5. 실행 (run) 스텝
